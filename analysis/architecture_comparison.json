@@ -1,0 +1,72 @@
+{
+  "setup": {
+    "dataset": "VinBigData 512px, WBF-fused consensus labels",
+    "splits": {
+      "train": 3075,
+      "val": 659,
+      "test": 660
+    },
+    "evaluation": "test split, identical images and metric for both models"
+  },
+  "faster_rcnn": {
+    "architecture": "Faster R-CNN ResNet-50 FPN",
+    "params_M": 41.3,
+    "epochs": 20,
+    "augmentation": "resize + horizontal flip",
+    "inference": "TTA (hflip) + WBF fusion",
+    "map50": 0.2897,
+    "map50_95": 0.1324,
+    "per_class": {
+      "Aortic enlargement": 0.5078,
+      "Atelectasis": 0.0554,
+      "Calcification": 0.0275,
+      "Cardiomegaly": 0.5402,
+      "Consolidation": 0.0792,
+      "ILD": 0.0527,
+      "Infiltration": 0.0822,
+      "Lung Opacity": 0.0608,
+      "Nodule/Mass": 0.0922,
+      "Other lesion": 0.0142,
+      "Pleural effusion": 0.098,
+      "Pleural thickening": 0.0328,
+      "Pneumothorax": 0.0663,
+      "Pulmonary fibrosis": 0.0523
+    }
+  },
+  "yolov8s": {
+    "architecture": "YOLOv8s",
+    "params_M": 11.1,
+    "epochs": "46 (early stopped, best at 36)",
+    "augmentation": "ultralytics default (mosaic, HSV, scale, flip)",
+    "inference": "single pass",
+    "inference_ms_per_image": 6.8,
+    "map50": 0.3475090963527912,
+    "map50_95": 0.18025262664719288,
+    "per_class": {
+      "Aortic enlargement": 0.5903395809218527,
+      "Atelectasis": 0.11700653749112744,
+      "Calcification": 0.03548991856749349,
+      "Cardiomegaly": 0.6545859837571951,
+      "Consolidation": 0.1420610132792948,
+      "ILD": 0.1220277373950595,
+      "Infiltration": 0.10478656307336198,
+      "Lung Opacity": 0.09674093798811498,
+      "Nodule/Mass": 0.1492926793216076,
+      "Other lesion": 0.028571141462104682,
+      "Pleural effusion": 0.17029769365003145,
+      "Pleural thickening": 0.06310997008420127,
+      "Pneumothorax": 0.14973949635833145,
+      "Pulmonary fibrosis": 0.09948751971092386
+    }
+  },
+  "findings": [
+    "YOLOv8s outperforms Faster R-CNN on all 14 classes with ~27% of the parameters.",
+    "Absolute gains concentrate in well-represented classes; data-scarce classes remain unusable (Calcification 0.036, Other lesion 0.029) regardless of architecture.",
+    "Relative gains are largest for rare classes, but from a near-zero base.",
+    "Confirms data scarcity, not architecture, as the binding performance constraint."
+  ],
+  "caveats": [
+    "Training recipes differ (epochs, augmentation) \u2014 this compares architectures as conventionally trained, not an isolated architecture ablation.",
+    "Faster R-CNN used TTA at inference; YOLOv8s did not."
+  ]
+}

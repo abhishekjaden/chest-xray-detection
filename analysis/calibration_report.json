@@ -1,0 +1,13 @@
+{
+  "method_comparison": {
+    "ece_raw": 0.045981453973007125,
+    "ece_temperature": 0.04567985677947421,
+    "temperature_T": 1.0180567438714827,
+    "ece_isotonic": 0.003703419803340909,
+    "ece_raw_above_0.25": 0.15544807158945456,
+    "ece_isotonic_above_0.25": 0.014040974046727276
+  },
+  "finding": "Temperature scaling ineffective: miscalibration is non-uniform across the confidence range, not a uniform over-confidence. Isotonic regression, being non-parametric, fits the actual shape.",
+  "n_val_predictions": 23722,
+  "n_test_predictions": 24457
+}
