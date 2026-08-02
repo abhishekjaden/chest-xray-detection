@@ -6,7 +6,7 @@ from PIL import Image
 from fastapi.testclient import TestClient
 from main import app
 
-MODEL_AVAILABLE = os.path.exists('best_model.pth')
+MODEL_AVAILABLE = os.path.exists('yolov8s_best.pt')
 requires_model = pytest.mark.skipif(
     not MODEL_AVAILABLE,
     reason="Model weights not available (not committed to repo due to size)"
@@ -22,7 +22,7 @@ def test_health():
         assert r.status_code == 200
         body = r.json()
         assert body["model_loaded"] is True
-        assert body["num_classes"] == 15
+        assert body["num_classes"] == 14
 
 
 def make_test_image():
