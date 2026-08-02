@@ -1,24 +1,35 @@
-# model.py - loads the trained model and runs TTA inference
+# model.py - YOLOv8s inference with isotonic calibration
 import json
 import numpy as np
-import torch
-import torchvision
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.transforms import functional as F
-from ensemble_boxes import weighted_boxes_fusion
 from PIL import Image
 
-# Load config
-with open('inference_config.json') as f:
-    CONFIG = json.load(f)
+# Class names (0-13, no background class in YOLO)
+CLASS_NAMES = ['Aortic enlargement','Atelectasis','Calcification','Cardiomegaly',
+    'Consolidation','ILD','Infiltration','Lung Opacity','Nodule/Mass','Other lesion',
+    'Pleural effusion','Pleural thickening','Pneumothorax','Pulmonary fibrosis']
+NUM_CLASSES = len(CLASS_NAMES)
+IMG_SIZE = 512
+WEIGHTS = 'yolov8s_best.pt'
 
-CLASS_NAMES = CONFIG['class_names']
-NUM_CLASSES = CONFIG['num_classes']
-IMG_SIZE = CONFIG['img_size']
-MEAN = CONFIG['mean']
-STD = CONFIG['std']
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# Load the isotonic calibration curve (fitted on held-out validation data).
+# Stored as plain numbers: version-independent, no sklearn dependency.
+_calib_x, _calib_y = None, None
+try:
+    with open('calibration_curve_yolo.json') as f:
+        _curve = json.load(f)
+    _calib_x = np.array(_curve['x'])
+    _calib_y = np.array(_curve['y'])
+    print(f'Calibration curve loaded ({len(_calib_x)} points).')
+except Exception as e:
+    print(f'Calibration curve not loaded ({e}); falling back to raw scores.')
+
+
+def calibrate(raw_score):
+    """Map a raw confidence score to a calibrated one via the isotonic curve."""
+    if _calib_x is None:
+        return raw_score
+    return float(np.interp(raw_score, _calib_x, _calib_y))
+
 
 def read_dicom(file_bytes):
     """Convert DICOM bytes to a PIL RGB image (same preprocessing as training)."""
@@ -32,91 +43,57 @@ def read_dicom(file_bytes):
         pixel_array = 255 - pixel_array
     return Image.fromarray(pixel_array).convert('RGB')
 
+
 _model = None  # cached model instance
 
 
 def load_model():
-    """Load the Faster R-CNN with trained weights. Called once at startup."""
+    """Load the YOLOv8s model. Called once at startup."""
     global _model
     if _model is not None:
         return _model
-    model = fasterrcnn_resnet50_fpn(weights=None)
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, NUM_CLASSES)
-    model.load_state_dict(torch.load('best_model.pth', map_location=DEVICE))
-    model.to(DEVICE)
-    model.eval()
-    _model = model
-    return model
+    from ultralytics import YOLO
+    _model = YOLO(WEIGHTS)
+    return _model
 
 
-def preprocess(pil_image):
-    """Resize to 512, normalize, return tensor."""
-    img = pil_image.convert('RGB').resize((IMG_SIZE, IMG_SIZE))
-    tensor = F.to_tensor(img)
-    tensor = F.normalize(tensor, mean=MEAN, std=STD)
-    return tensor
+def predict(pil_image, score_threshold=0.25, use_tta=False):
+    """Run inference on a PIL image. Returns list of detections.
 
-
-def predict(pil_image, score_threshold=0.25, use_tta=True):
-    """Run TTA inference on a PIL image. Returns list of detections."""
+    Note: use_tta is accepted for interface compatibility but not used —
+    YOLOv8 is run single-pass. Calibration was fitted on single-pass scores.
+    """
     model = load_model()
-    tensor = preprocess(pil_image)
+    img = pil_image.convert('RGB').resize((IMG_SIZE, IMG_SIZE))
 
-    with torch.no_grad():
-        out_orig = model([tensor.to(DEVICE)])[0]
-
-    if use_tta:
-        flipped = torch.flip(tensor, dims=[2])
-        with torch.no_grad():
-            out_flip = model([flipped.to(DEVICE)])[0]
-
-        fb = out_flip['boxes'].cpu().numpy().copy()
-        fb_un = fb.copy()
-        fb_un[:, 0] = IMG_SIZE - fb[:, 2]
-        fb_un[:, 2] = IMG_SIZE - fb[:, 0]
-
-        bo = np.clip(out_orig['boxes'].cpu().numpy() / IMG_SIZE, 0, 1)
-        bf = np.clip(fb_un / IMG_SIZE, 0, 1)
-        so = out_orig['scores'].cpu().numpy()
-        sf = out_flip['scores'].cpu().numpy()
-        lo = out_orig['labels'].cpu().numpy()
-        lf = out_flip['labels'].cpu().numpy()
-
-        if len(bo) == 0 and len(bf) == 0:
-            return []
-
-        boxes, scores, labels = weighted_boxes_fusion(
-            [bo.tolist(), bf.tolist()], [so.tolist(), sf.tolist()],
-            [lo.tolist(), lf.tolist()], iou_thr=0.5, skip_box_thr=0.0)
-        boxes = np.array(boxes) * IMG_SIZE
-    else:
-        boxes = out_orig['boxes'].cpu().numpy()
-        scores = out_orig['scores'].cpu().numpy()
-        labels = out_orig['labels'].cpu().numpy()
+    results = model.predict(np.array(img), imgsz=IMG_SIZE,
+                            conf=score_threshold, verbose=False)[0]
 
     detections = []
-    for box, score, label in zip(boxes, scores, labels):
-        if score >= score_threshold:
-            detections.append({
-                'label': CLASS_NAMES[int(label)],
-                'confidence': round(float(score), 3),
-                'box': [round(float(c), 1) for c in box],  # [x1,y1,x2,y2] in 512-space
-            })
+    for box, score, cls in zip(results.boxes.xyxy.cpu().numpy(),
+                               results.boxes.conf.cpu().numpy(),
+                               results.boxes.cls.cpu().numpy()):
+        raw = float(score)
+        detections.append({
+            'label': CLASS_NAMES[int(cls)],
+            'confidence': round(calibrate(raw), 3),   # calibrated (primary)
+            'raw_confidence': round(raw, 3),          # original model score
+            'box': [round(float(c), 1) for c in box],
+        })
     detections.sort(key=lambda d: d['confidence'], reverse=True)
     return detections
+
+
 def draw_detections(pil_image, detections):
     """Draw bounding boxes + labels on the image. Returns annotated PIL image (512x512)."""
     from PIL import ImageDraw, ImageFont
-    # Resize to the processing size so boxes (in 512-space) align
     img = pil_image.convert('RGB').resize((IMG_SIZE, IMG_SIZE))
     draw = ImageDraw.Draw(img)
 
-    # A distinct color per class index
     palette = [
         '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4',
         '#46f0f0','#f032e6','#bcf60c','#fabebe','#008080','#e6beff',
-        '#9a6324','#fffac8','#800000'
+        '#9a6324','#fffac8'
     ]
     try:
         font = ImageFont.truetype("arial.ttf", 14)
@@ -127,12 +104,9 @@ def draw_detections(pil_image, detections):
         x1, y1, x2, y2 = det['box']
         label = det['label']
         conf = det['confidence']
-        # color by class name index
         ci = CLASS_NAMES.index(label) if label in CLASS_NAMES else 0
         color = palette[ci % len(palette)]
-        # box
         draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
-        # label background + text
         text = f"{label} {conf:.2f}"
         tb = draw.textbbox((x1, y1), text, font=font)
         draw.rectangle([tb[0], tb[1]-2, tb[2]+4, tb[3]+2], fill=color)
