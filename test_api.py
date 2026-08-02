@@ -1,13 +1,20 @@
 # test_api.py - API endpoint tests
 import io
+import os
 import pytest
 from PIL import Image
 from fastapi.testclient import TestClient
 from main import app
 
+MODEL_AVAILABLE = os.path.exists('best_model.pth')
+requires_model = pytest.mark.skipif(
+    not MODEL_AVAILABLE,
+    reason="Model weights not available (not committed to repo due to size)"
+)
+
 # Context manager triggers lifespan startup (loads the model), matching real server behavior
 client = TestClient(app)
-
+@requires_model
 def test_health():
     """Health endpoint confirms model is loaded (after startup)."""
     with TestClient(app) as c:   # 'with' triggers the lifespan model-load
@@ -35,7 +42,7 @@ def test_root():
 
 
 
-
+@requires_model
 def test_predict_valid_image():
     """A valid image returns a well-formed detection response."""
     img = make_test_image()
@@ -70,7 +77,7 @@ def test_predict_rejects_empty_file():
     r = client.post("/predict", files={"file": ("empty.png", empty, "image/png")})
     assert r.status_code == 400
 
-
+@requires_model
 def test_visualize_returns_image():
     """The visualize endpoint returns a PNG image."""
     img = make_test_image()
