@@ -1,5 +1,7 @@
 # Chest X-Ray Abnormality Detection
 
+[![Tests](https://github.com/abhishekjaden/chest-xray-detection/actions/workflows/tests.yml/badge.svg)](https://github.com/abhishekjaden/chest-xray-detection/actions/workflows/tests.yml)
+
 An end-to-end deep learning system that detects 14 thoracic abnormalities in chest X-rays — with a rigorous evaluation of *why* it performs as it does.
 
 > ⚠️ **Educational / research demonstration only. Not a diagnostic device. Not validated for clinical use and must not be used for medical decisions.**
