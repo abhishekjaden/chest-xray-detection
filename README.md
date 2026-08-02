@@ -40,7 +40,7 @@ YOLOv8s wins on all 14 classes with ~27% of the parameters — yet data-scarce c
 
 **Performance tracks training-set size.** Cardiomegaly (~700 images) reaches 0.54 mAP@0.5:0.95; Other lesion (~15 images) reaches 0.014. Two classes work; twelve don't.
 
-**Confidence scores were badly miscalibrated.** At 75% claimed confidence the model was correct 40% of the time. Temperature scaling failed (0.7% improvement) because the miscalibration is non-uniform. Isotonic regression reduced calibration error by **91%** — and is deployed in the live demo.
+**Both models were badly miscalibrated — in opposite directions.** Faster R-CNN was over-confident: at 75% claimed confidence it was correct 40% of the time. Temperature scaling failed (0.7% improvement) because the miscalibration is non-uniform across the confidence range; isotonic regression reduced calibration error by **91%**. YOLOv8s showed the reverse problem — systematic *under*-confidence, with a raw 0.35 score correct 62% of the time — and isotonic calibration reduced its ECE by **93.7%**. Calibrated output is capped at 0.95 to avoid claiming a certainty the data doesn't support, and is live in the deployed demo.
 
 ![Reliability diagram](analysis/calibration_reliability_diagram.png)
 
@@ -53,7 +53,8 @@ YOLOv8s wins on all 14 classes with ~27% of the parameters — yet data-scarce c
 | Models | Faster R-CNN (ResNet-50 FPN) and YOLOv8s, PyTorch |
 | Label fusion | Weighted Boxes Fusion (multi-radiologist consensus) |
 | Calibration | Isotonic regression, fitted on held-out validation |
-| Inference | Test-Time Augmentation (hflip + WBF) |
+| Deployed model | YOLOv8s, single-pass inference (~7 ms/image) |
+| Inference (Faster R-CNN) | Test-Time Augmentation (hflip + WBF) |
 | API | FastAPI — JSON detections, annotated images, DICOM support |
 | Frontend | React + Vite — canvas rendering, threshold slider, class filters |
 | Deployment | Gradio on Hugging Face Spaces |
