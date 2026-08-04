@@ -5,7 +5,7 @@
 Object detectors that localize 14 thoracic abnormalities in chest radiographs, trained on the VinBigData Chest X-ray dataset and deployed as an educational demonstration.
 
 - **Task:** Multi-class object detection
-- **Models:** Faster R-CNN (ResNet-50 FPN, 41.3M params) — deployed; YOLOv8s (11.1M params) — evaluated
+- **Models:** YOLOv8s (11.1M params) — **deployed**; Faster R-CNN (ResNet-50 FPN, 41.3M params) — evaluated for comparison
 - **Framework:** PyTorch / torchvision / Ultralytics
 - **Input:** Chest X-ray (PNG, JPG, or DICOM), resized to 512×512
 - **Output:** Bounding boxes with class labels and isotonic-calibrated confidence scores
