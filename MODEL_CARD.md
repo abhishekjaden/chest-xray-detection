@@ -46,11 +46,17 @@ Two of fourteen classes perform respectably. The remainder are unreliable.
 
 ## Calibration
 
-Raw confidence scores were substantially over-confident: predictions claiming 75% confidence were correct 40% of the time (ECE = 0.155 for scores ≥ 0.25).
+Both models were poorly calibrated, in opposite directions.
 
-Temperature scaling was ineffective (T = 1.018, 0.7% ECE reduction) because the miscalibration is non-uniform across the confidence range rather than a uniform over-confidence. Isotonic regression, fitted on the validation split and evaluated on test, reduced ECE by **91%** (0.155 → 0.014 for actionable predictions).
+**Faster R-CNN was over-confident.** Predictions claiming 75% confidence were correct 40% of the time (ECE = 0.155 for scores ≥ 0.25). Temperature scaling was ineffective (T = 1.018, 0.7% ECE reduction) because the miscalibration is non-uniform across the confidence range rather than a uniform inflation — accurate at both extremes, badly wrong in the middle. Isotonic regression, being non-parametric, fit the actual shape and reduced ECE by **91%** (0.155 → 0.014).
 
-**The calibrator is applied in the deployed demo.** Displayed confidences reflect measured precision on this dataset. Calibration does not change detection accuracy — mAP is unchanged — it makes the confidence values honest.
+**YOLOv8s is under-confident.** Raw scores of 0.35 were correct 62% of the time; 0.83 was correct 99% of the time. Isotonic calibration reduced ECE by **93.7%** (0.249 → 0.016).
+
+**Calibrated output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, but that estimate rested on only 4 test samples in the top confidence bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE.
+
+**Known limitation:** the isotonic fit has flat regions where distinct raw scores collapse to identical calibrated values (raw 0.35 and 0.55 both map to 0.69). This reflects monotonicity enforcement through noisy mid-range bins on 6,754 test predictions, and makes the confidence slider less granular in that range.
+
+**The YOLOv8s calibrator is applied in the deployed demo.** Displayed confidences reflect measured precision on this dataset. Calibration does not change detection accuracy — mAP is unchanged — it makes the confidence values honest.
 
 ## Limitations (evaluated, not assumed)
 
