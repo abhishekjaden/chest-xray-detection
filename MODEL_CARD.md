@@ -7,7 +7,7 @@ Object detectors that localize 14 thoracic abnormalities in chest radiographs, t
 - **Task:** Multi-class object detection
 - **Models:** YOLOv8s (11.1M params) — **deployed**; Faster R-CNN (ResNet-50 FPN, 41.3M params) — evaluated for comparison
 - **Framework:** PyTorch / torchvision / Ultralytics
-- **Input:** Chest X-ray (PNG, JPG, or DICOM), resized to 512×512
+- **Input:** Chest X-ray (PNG, JPG, or DICOM via the API; PNG/JPG in the Gradio demo), resized to 512×512
 - **Output:** Bounding boxes with class labels and isotonic-calibrated confidence scores
 - **Live demo:** https://huggingface.co/spaces/rocky17435/xray-detection
 - **Full study:** [TECHNICAL_REPORT.md](TECHNICAL_REPORT.md)
@@ -29,7 +29,7 @@ Object detectors that localize 14 thoracic abnormalities in chest radiographs, t
 
 Both models on the same held-out test split:
 
-| | Faster R-CNN | YOLOv8s |
+| | Faster R-CNN | YOLOv8s (deployed) |
 |---|---|---|
 | mAP@0.5 | 0.290 | 0.348 |
 | mAP@0.5:0.95 | 0.132 | 0.180 |
@@ -52,20 +52,20 @@ Both models were poorly calibrated, in opposite directions.
 
 **YOLOv8s is under-confident.** Raw scores of 0.35 were correct 62% of the time; 0.83 was correct 99% of the time. Isotonic calibration reduced ECE by **93.7%** (0.249 → 0.016).
 
-**Calibrated output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, but that estimate rested on only 4 test samples in the top confidence bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE.
+**Calibrated output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, but that rested on only 4 test samples in the top confidence bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE.
 
-**Known limitation:** the isotonic fit has flat regions where distinct raw scores collapse to identical calibrated values (raw 0.35 and 0.55 both map to 0.69). This reflects monotonicity enforcement through noisy mid-range bins on 6,754 test predictions, and makes the confidence slider less granular in that range.
+**Known limitation:** the isotonic fit has flat regions where distinct raw scores collapse to identical calibrated values (raw 0.35 and 0.55 both map to 0.69). This reflects monotonicity enforcement through noisy mid-range bins on 6,754 test predictions.
 
 **The YOLOv8s calibrator is applied in the deployed demo.** Displayed confidences reflect measured precision on this dataset. Calibration does not change detection accuracy — mAP is unchanged — it makes the confidence values honest.
 
 ## Limitations (evaluated, not assumed)
 
-- **Data scarcity is the binding constraint.** This was tested interventionally: switching to a stronger architecture (YOLOv8s) improved all 14 classes, yet data-scarce classes remained unusable. Architecture is not the limitation.
-- **Twelve of fourteen classes should not be relied upon.** Classes with 15–30 training examples produce frequent false positives, visible in the failure analysis.
+- **Data scarcity is the binding constraint.** Tested interventionally: switching to a stronger architecture (YOLOv8s) improved all 14 classes, yet data-scarce classes remained unusable. Architecture is not the limitation.
+- **Twelve of fourteen classes should not be relied upon.** Classes with 15–30 training examples remain near-zero in both models.
 - **Calibration is dataset-specific.** The isotonic curve is fitted to this data's distribution and would require refitting for other populations or equipment.
-- **Attention is diffuse.** Feature-activation mapping shows the model attends to thoracic anatomy rather than artifacts, but broadly rather than focally — consistent with over-prediction.
+- **Conservative on out-of-distribution images.** YOLOv8s produces roughly 3.6× fewer predictions than Faster R-CNN at more than double the precision, and frequently returns no findings on radiographs unlike its training data.
+- **Attention is diffuse.** Feature-activation mapping (measured on Faster R-CNN) shows the model attends to thoracic anatomy rather than artifacts, but broadly rather than focally.
 - **Trained on a subset** due to compute constraints. Full-dataset training would likely improve rare-class performance.
-- **Out-of-distribution performance untested.**
 
 ## Ethical Considerations
 
@@ -74,7 +74,6 @@ Medical AI carries real risk of harm if misused. This model is deliberately fram
 ## Methodology Notes
 
 - Transfer learning from COCO-pretrained weights (both models)
-- Class-balanced sampling, rare classes oversampled up to 28× (Faster R-CNN)
-- Test-time augmentation (hflip + WBF): mAP@0.5:0.95 0.126 → 0.132
-- Best checkpoint by validation loss (epoch 4; overfitting beyond)
-- Calibrator stored as a plain JSON curve rather than a pickled model — version-independent and dependency-free
+- Faster R-CNN: class-balanced sampling (rare classes oversampled up to 28×), best checkpoint by validation loss (epoch 4; overfitting beyond), TTA at inference (hflip + WBF, mAP@0.5:0.95 0.126 → 0.132)
+- YOLOv8s: default Ultralytics augmentation, early-stopped at epoch 46 (best at 36), single-pass inference — no TTA
+- Calibrators stored as plain JSON curves rather than pickled models — version-independent and dependency-free
