@@ -164,4 +164,12 @@ YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of
 
 ## 10. What Would Actually Help
 
-Not a better architecture — that was tested. The interventions that would move the needle are more data for rare classes (full VinDr-CXR access is pending credentialing), or reframing rare classes as anomaly detection rather than supervised detection.
+Not a better architecture — that was tested directly, and the limitation persisted.
+
+**Not simply "more data," either.** The full VinDr-CXR release (accessed via PhysioNet credentialing) contains the same 15,000 training scans this project used, of which only 4,394 contain any finding. It adds 8 further label categories and original-resolution DICOMs, but not additional examples of the classes that fail. The rare-class scarcity is a property of the dataset, not of the subset sampled from it.
+
+What would plausibly help:
+
+- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of 5 radiologists with 2 senior reviewers resolving disagreements) is a stronger ground truth than the 3-radiologist WBF merge used here.
+- **Reframing rare findings as anomaly detection** rather than supervised detection, which does not require per-class training examples.
+- **Targeted data collection** for specific findings, rather than more of the same distribution.
