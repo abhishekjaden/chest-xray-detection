@@ -102,6 +102,9 @@ If a model is guessing on rare classes, its confidence scores should be untrustw
 6,754 test predictions — 3.6× fewer than Faster R-CNN, at more than double the precision (0.458 vs ~0.20). A far less trigger-happy detector.
 
 But its scores understate its accuracy at every level: raw 0.07 was correct 32% of the time, raw 0.35 was correct 62%, raw 0.83 was correct 99%. Raw ECE 0.249; isotonic calibration reduced it by **93.7% to 0.016**.
+![YOLOv8s reliability diagram](analysis/calibration_yolo_reliability.png)
+
+The curve sits *above* the diagonal — the visual signature of under-confidence, mirroring Faster R-CNN's sag below it. Same fix, opposite direction.
 
 **Output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, but that estimate rested on 4 test samples in the top bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE, a trade worth making.
 
