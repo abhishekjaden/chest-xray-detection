@@ -150,7 +150,12 @@ YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of
 
 **Model swap.** Moving from Faster R-CNN to YOLOv8s required refitting calibration against the new score distribution — the previous curve was fitted to a different model and would have produced wrong confidences. The inference engine was rewritten while keeping the public interface identical (`predict`, `draw_detections`, `read_dicom`), so the API, tests, and demo needed no changes. The existing test suite served as the regression check.
 
+**ONNX export — evaluated, not deployed.** The model was exported to ONNX (opset 12, fixed 512×512 input) with post-processing — anchor-free box decoding and per-class NMS — reimplemented from the raw `(1, 18, 5376)` output. Verified against ultralytics on test images: identical classes, identical scores, **0.00px maximum box difference** across all detections. Benchmarked at 163.9 ms/image versus 186.7 ms for ultralytics on CPU — a 1.14× speedup.
+
+It was not deployed. The speedup is immaterial for single-image interactive use, the ONNX file is larger (42.6 MB vs 22.5 MB), and replacing library-maintained post-processing with hand-written decoding introduces maintenance risk against a calibration curve fitted to ultralytics' NMS behaviour. The export script and verification results are in the repository (`export_onnx.py`, `analysis/onnx_evaluation.json`).
+
 **Practices.** 7 endpoint tests covering happy paths and error cases, running in CI on every push; calibration validated on held-out data before deployment; version-independent artifact storage; honest scoping throughout.
+
 
 ---
 
