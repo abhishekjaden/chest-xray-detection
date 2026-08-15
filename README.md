@@ -66,6 +66,7 @@ YOLOv8s wins on all 14 classes with ~27% of the parameters — yet data-scarce c
 - Calibration validated on held-out data before deployment
 - Version-independent artifact storage (JSON curve rather than pickled model)
 - Honest scoping and documented limitations throughout
+- ONNX export verified bit-exact against the reference implementation, then rejected on measured evidence rather than deployed by default
 
 ## Limitations
 
