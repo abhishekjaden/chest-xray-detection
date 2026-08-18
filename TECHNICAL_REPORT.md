@@ -84,7 +84,7 @@ Positional spread — the standard deviation of annotation centroids, a proxy fo
 Ground truth (green) beside predictions (red) across test images shows a consistent pattern:
 
 - **Well-represented classes are detected accurately and localised tightly.** Cardiomegaly and Aortic enlargement predictions closely match ground truth.
-- **Data-scarce classes produce false positives.** On difficult images the model floods the field with low-confidence boxes for Pneumothorax, Other lesion, and Pleural thickening — findings it has seen only a handful of times.
+- **The persistently failing classes produce false positives.** On difficult images the model floods the field with low-confidence boxes for Pneumothorax, Other lesion, and Pleural thickening — findings it detects poorly regardless of how many training examples exist for them.
 
 The failure mode is not "missing findings" but "guessing" on classes it never learned.
 
