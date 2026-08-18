@@ -16,7 +16,7 @@ Multi-class object detection over 14 thoracic findings, using the VinBigData Che
 
 **Splits.** Stratified into 3,075 train / 659 validation / 660 test images. All results are measured on the held-out test split unless stated otherwise.
 
-**Class imbalance.** Roughly 65:1 between the most and least represented classes. Aortic enlargement appears in 974 training images; Atelectasis in 15. This turns out to be the central fact of the entire project.
+**Class imbalance.** Roughly 65:1 within the sampled subset — Aortic enlargement in 974 images, Atelectasis in 15. This appeared to be the central constraint, and Section 3 tests that assumption against the full dataset.
 
 ---
 
@@ -153,7 +153,7 @@ YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of
 
 **But the limitation persists.** Absolute gains concentrate in well-represented classes (Cardiomegaly +0.114, Aortic enlargement +0.083), while data-scarce classes remain unusable: Calcification 0.036, Other lesion 0.029. In relative terms the rare classes improved as much or more — Atelectasis and Pneumothorax both roughly doubled — but from a base so low that doubling changes nothing practical.
 
-**Conclusion:** a substantially better architecture lifts performance across the board but cannot manufacture signal from 15 training examples. The binding constraint is data, not model.
+**Conclusion:** a substantially better architecture lifts performance across the board but does not change which classes fail. Architecture is not the binding constraint. Section 3 shows that data volume isn't either — the same twelve classes fail in both models regardless of how many training examples they have.
 
 *Caveat: the two models were trained with their conventional recipes (different epoch counts, augmentation stacks, and TTA), so this compares architectures as normally trained rather than isolating architecture alone.*
 
@@ -195,5 +195,4 @@ What remains open:
 - **Higher input resolution**, tested specifically on the small-lesion classes. Calcification and Pleural thickening have the smallest median box areas in the dataset (27k and 31k px²) and may be losing signal at 512px. This is the one hypothesis the data actively supports and it is directly testable.
 - **Anatomical constraint** as the explanatory variable, measured properly. Normalising positional spread by image dimensions, and extending to all 22 local labels rather than 14, would give the analysis more power than n = 14 allows.
 - **Inter-radiologist agreement**, which is unmeasured here and may cap achievable performance on the diffuse classes. The training annotations contain three independent radiologists per image, so this is computable from data already in hand.
-- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of five radiologists with two senior reviewers resolving disagreements) is stronger ground truth than the three-radiologist WBF merge used here.ch does not require per-class training examples.
-- **Targeted data collection** for specific findings, rather than more of the same distribution.
+- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of five radiologists with two senior reviewers resolving disagreements) is stronger ground truth than the three-radiologist WBF merge used here.
