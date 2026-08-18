@@ -39,26 +39,41 @@ Both are comparable to or better than published competition baselines for this d
 
 ---
 
-## 3. Per-Class Analysis: The Central Finding
+## 3. Per-Class Analysis
 
 Overall mAP conceals a two-tier structure (YOLOv8s, mAP@0.5:0.95):
 
-| Class | Approx. train images | Score |
+| Class | Images (full train set) | Median box area (px²) | Positional spread (px) | mAP |
+|---|---|---|---|---|
+| Cardiomegaly | 2,316 | 396,385 | 322 | 0.655 |
+| Aortic enlargement | 3,098 | 96,503 | 277 | 0.590 |
+| Pleural effusion | 1,038 | 62,367 | 925 | 0.170 |
+| Pneumothorax | 96 | 530,909 | 808 | 0.150 |
+| Nodule/Mass | 841 | 10,012 | 803 | 0.149 |
+| Consolidation | 353 | 235,992 | 658 | 0.142 |
+| ILD | 397 | 548,439 | 715 | 0.122 |
+| Atelectasis | 187 | 272,439 | 704 | 0.117 |
+| Infiltration | 613 | 244,912 | 730 | 0.105 |
+| Pulmonary fibrosis | 1,621 | 75,729 | 761 | 0.099 |
+| Lung Opacity | 1,331 | 151,715 | 742 | 0.097 |
+| Pleural thickening | 2,010 | 31,330 | 1,058 | 0.063 |
+| Calcification | 458 | 27,206 | 764 | 0.036 |
+| Other lesion | 1,154 | 119,592 | 852 | 0.029 |
+
+**An initial hypothesis — that performance is limited by training-set size — was tested against the full VinDr-CXR annotations and does not hold.**
+
+| Variable vs mAP@0.5:0.95 | Spearman ρ | p |
 |---|---|---|
-| Cardiomegaly | ~700 | 0.655 |
-| Aortic enlargement | 974 | 0.590 |
-| Pleural effusion | — | 0.170 |
-| Nodule/Mass | — | 0.149 |
-| ... | | |
-| Pleural thickening | — | 0.063 |
-| Calcification | ~30 | 0.036 |
-| Other lesion | — | 0.029 |
+| Training images | +0.055 | 0.85 |
+| Median box area | +0.292 | 0.31 |
+| Positional spread | −0.433 | 0.12 |
+| Boxes per image | +0.233 | 0.42 |
 
-Detection quality tracks training-set size almost monotonically. Two classes perform respectably; the remaining twelve cluster near zero.
+Training-set size shows no relationship with performance (ρ = +0.055, p = 0.85). The clearest counter-example: Pleural thickening has 2,010 training images and scores 0.063, while Cardiomegaly has 2,316 and scores 0.655 — near-identical volume, tenfold difference. Pneumothorax scores 0.150 on 96 images, the second-fewest in the dataset.
 
-**Hypothesis:** performance is limited by data availability, not by model architecture or training procedure.
+Positional spread — the standard deviation of annotation centroids, a proxy for anatomical constraint — shows the strongest association and in the expected direction (ρ = −0.433), but **does not reach significance at n = 14**. The two best-performing classes are the two occupying fixed anatomical positions: the heart and the aortic knob are always in the same place, so the detector measures rather than searches. This is suggestive, not established.
 
-The rest of this report tests that hypothesis four ways.
+**The honest conclusion is that data volume does not explain the failures, and what does remains unproven.** With only 14 classes, the analysis lacks power to distinguish among candidate explanations. The positional-spread measure is also computed in raw DICOM coordinates without normalising for image dimensions, so some spread reflects image-size variation rather than anatomical variation.
 
 ---
 
@@ -161,7 +176,7 @@ It was not deployed. The speedup is immaterial for single-image interactive use,
 
 ## 9. Limitations
 
-- Trained on a 3,075-image subset. Twelve of fourteen classes are effectively undetectable.
+- Trained on a 3,075-image subset of a 15,000-image training set, which under-represents rare classes relative to the full data (roughly 30 Calcification examples against 458 available; 15 Atelectasis against 187). Note that correcting this would not be expected to help, given that training-set size shows no correlation with per-class performance.
 - Not clinically validated; no regulatory clearance. Educational demonstration only.
 - Calibration is fitted to this dataset's distribution and would require refitting for other data.
 - The deployed model is conservative on out-of-distribution images and frequently returns no findings on radiographs unlike its training data.
@@ -169,12 +184,16 @@ It was not deployed. The speedup is immaterial for single-image interactive use,
 
 ## 10. What Would Actually Help
 
-Not a better architecture — that was tested directly, and the limitation persisted.
+Two hypotheses were tested; neither survived.
 
-**Not simply "more data," either.** The full VinDr-CXR release (accessed via PhysioNet credentialing) contains the same 15,000 training scans this project used, of which only 4,394 contain any finding. It adds 8 further label categories and original-resolution DICOMs, but not additional examples of the classes that fail. The rare-class scarcity is a property of the dataset, not of the subset sampled from it.
+**Not a better architecture.** YOLOv8s outperformed Faster R-CNN on all 14 classes with a quarter of the parameters, and the failing classes stayed failing.
 
-What would plausibly help:
+**Not more data.** Checking against the full VinDr-CXR annotations gave ρ = +0.055 (p = 0.85) between per-class training-set size and mAP — no relationship. The subset used here was thinner than the full set for rare classes, but that is not what separates the working classes from the failing ones.
 
-- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of 5 radiologists with 2 senior reviewers resolving disagreements) is a stronger ground truth than the 3-radiologist WBF merge used here.
-- **Reframing rare findings as anomaly detection** rather than supervised detection, which does not require per-class training examples.
+What remains open:
+
+- **Higher input resolution**, tested specifically on the small-lesion classes. Calcification and Pleural thickening have the smallest median box areas in the dataset (27k and 31k px²) and may be losing signal at 512px. This is the one hypothesis the data actively supports and it is directly testable.
+- **Anatomical constraint** as the explanatory variable, measured properly. Normalising positional spread by image dimensions, and extending to all 22 local labels rather than 14, would give the analysis more power than n = 14 allows.
+- **Inter-radiologist agreement**, which is unmeasured here and may cap achievable performance on the diffuse classes. The training annotations contain three independent radiologists per image, so this is computable from data already in hand.
+- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of five radiologists with two senior reviewers resolving disagreements) is stronger ground truth than the three-radiologist WBF merge used here.ch does not require per-class training examples.
 - **Targeted data collection** for specific findings, rather than more of the same distribution.
