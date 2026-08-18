@@ -23,7 +23,7 @@ Object detectors that localize 14 thoracic abnormalities in chest radiographs, t
 - **Source:** VinBigData Chest X-ray Abnormalities Detection dataset
 - **Subset:** 3,075 train / 659 validation / 660 test images (stratified)
 - **Labels:** Multi-radiologist annotations merged via Weighted Boxes Fusion (36,096 raw → 22,719 consensus boxes)
-- **Imbalance:** Severe, roughly 65:1. Aortic enlargement appears in 974 training images; Atelectasis in 15.
+- **Imbalance:** Severe within the sampled subset, roughly 65:1 — Aortic enlargement in 974 images, Atelectasis in 15. The full training set is less skewed, and imbalance does not predict per-class performance (see Limitations).
 
 ## Performance
 
@@ -60,12 +60,12 @@ Both models were poorly calibrated, in opposite directions.
 
 ## Limitations (evaluated, not assumed)
 
-- **Data scarcity is the binding constraint.** Tested interventionally: switching to a stronger architecture (YOLOv8s) improved all 14 classes, yet data-scarce classes remained unusable. Architecture is not the limitation.
-- **Twelve of fourteen classes should not be relied upon.** Classes with 15–30 training examples remain near-zero in both models.
+- **The cause of the per-class failures is not established.** Two hypotheses were tested and rejected: architecture (YOLOv8s improved all 14 classes without changing which fail) and training-set size (ρ = +0.055, p = 0.85 against per-class mAP). Positional spread of annotations is the strongest remaining candidate but does not reach significance at n = 14.
+- **Twelve of fourteen classes should not be relied upon.** They score below 0.18 mAP@0.5:0.95 in both models, independent of how many training examples exist for them.
 - **Calibration is dataset-specific.** The isotonic curve is fitted to this data's distribution and would require refitting for other populations or equipment.
 - **Conservative on out-of-distribution images.** YOLOv8s produces roughly 3.6× fewer predictions than Faster R-CNN at more than double the precision, and frequently returns no findings on radiographs unlike its training data.
 - **Attention is diffuse.** Feature-activation mapping (measured on Faster R-CNN) shows the model attends to thoracic anatomy rather than artifacts, but broadly rather than focally.
-- **Trained on a subset** due to compute constraints. Full-dataset training would likely improve rare-class performance.
+- **Trained on a subset** due to compute constraints. Note that full-dataset training would not be expected to fix the failing classes, since per-class performance does not correlate with training-set size.
 
 ## Ethical Considerations
 
