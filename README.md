@@ -20,7 +20,7 @@ The full study: methodology, per-class analysis, calibration, explainability, an
 
 ## Overview
 
-Multi-class object detection over 14 thoracic findings, using the VinBigData Chest X-ray dataset. The project covers the full lifecycle — data engineering, training, evaluation, API, frontend, and live deployment — but the substantive contribution is the evaluation: four independent lines of evidence establishing that **data scarcity, not model architecture, is the binding performance constraint.**
+Multi-class object detection over 14 thoracic findings, using the VinBigData Chest X-ray dataset. The project covers the full lifecycle — data engineering, training, evaluation, API, frontend, and live deployment — but the substantive contribution is the evaluation: An initial hypothesis that data scarcity drove the per-class failures was tested against the full dataset annotations and **rejected** (ρ = +0.055, p = 0.85). Neither data volume nor architecture explains which classes fail.
 
 ## Results
 
@@ -34,17 +34,17 @@ Both models evaluated on the same held-out test split (660 images), identical in
 
 ![Architecture comparison](analysis/architecture_comparison.png)
 
-YOLOv8s wins on all 14 classes with ~27% of the parameters — yet data-scarce classes remain unusable in both (Calcification 0.036, Other lesion 0.029). A better architecture lifts everything but cannot manufacture signal from 15 training examples.
+YOLOv8s wins on all 14 classes with ~27% of the parameters — yet the same twelve classes remain unusable in both (Calcification 0.036, Other lesion 0.029). A better architecture lifts performance across the board without changing which findings the model can actually detect.
 
 ## Key findings
 
-**Performance tracks training-set size.** Cardiomegaly (~700 images) reaches 0.54 mAP@0.5:0.95; Other lesion (~15 images) reaches 0.014. Two classes work; twelve don't.
+**Performance is not predicted by training-set size.** Spearman ρ = +0.055 (p = 0.85) across the 14 classes. Pleural thickening has 2,010 training images and scores 0.063 mAP@0.5:0.95; Cardiomegaly has 2,316 and scores 0.655. An initial hypothesis that data scarcity drove the failures was tested against the full dataset annotations and rejected. What does explain the gap is not yet established — positional spread of annotations is the strongest candidate (ρ = −0.433) but does not reach significance at n = 14.
 
 **Both models were badly miscalibrated — in opposite directions.** Faster R-CNN was over-confident: at 75% claimed confidence it was correct 40% of the time. Temperature scaling failed (0.7% improvement) because the miscalibration is non-uniform across the confidence range; isotonic regression reduced calibration error by **91%**. YOLOv8s showed the reverse problem — systematic *under*-confidence, with a raw 0.35 score correct 62% of the time — and isotonic calibration reduced its ECE by **93.7%**. Calibrated output is capped at 0.95 to avoid claiming a certainty the data doesn't support, and is live in the deployed demo.
 
 ![Reliability diagram](analysis/calibration_reliability_diagram.png)
 
-**Failure analysis and attention mapping** independently confirm the same picture: the model localises well-represented findings accurately and produces false positives on classes it has barely seen.
+**Failure analysis and attention mapping** independently confirm the same picture: the model localises the two well-performing findings accurately and produces false positives on the rest.
 
 ## Architecture
 
@@ -70,7 +70,7 @@ YOLOv8s wins on all 14 classes with ~27% of the parameters — yet data-scarce c
 
 ## Limitations
 
-- Trained on a 3,075-image subset; twelve of fourteen classes are effectively undetectable
+- Twelve of fourteen classes are effectively undetectable; the cause is not established, and is not training-set size
 - Not clinically validated; no regulatory clearance — educational demonstration only
 - Calibration is fitted to this dataset's distribution and would need refitting elsewhere
 - Out-of-distribution performance untested
