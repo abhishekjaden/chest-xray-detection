@@ -1,0 +1,81 @@
+{
+  "method": "For each (image, class), each radiologist's boxes were scored as predictions against the other radiologists' boxes as ground truth, at IoU thresholds 0.50:0.95:0.05, averaged across thresholds. This is a precision-style measure of inter-annotator localisation consistency, not a true mAP \u2014 it omits recall and confidence ranking, so it bounds achievable agreement rather than reproducing the model metric exactly.",
+  "per_class": {
+    "Aortic enlargement": {
+      "human_ceiling": 0.527,
+      "yolov8s_mAP": 0.59,
+      "fraction_of_ceiling": 1.12
+    },
+    "Atelectasis": {
+      "human_ceiling": 0.265,
+      "yolov8s_mAP": 0.117,
+      "fraction_of_ceiling": 0.441
+    },
+    "Calcification": {
+      "human_ceiling": 0.306,
+      "yolov8s_mAP": 0.036,
+      "fraction_of_ceiling": 0.118
+    },
+    "Cardiomegaly": {
+      "human_ceiling": 0.599,
+      "yolov8s_mAP": 0.655,
+      "fraction_of_ceiling": 1.093
+    },
+    "Consolidation": {
+      "human_ceiling": 0.375,
+      "yolov8s_mAP": 0.142,
+      "fraction_of_ceiling": 0.378
+    },
+    "ILD": {
+      "human_ceiling": 0.353,
+      "yolov8s_mAP": 0.122,
+      "fraction_of_ceiling": 0.345
+    },
+    "Infiltration": {
+      "human_ceiling": 0.323,
+      "yolov8s_mAP": 0.105,
+      "fraction_of_ceiling": 0.325
+    },
+    "Lung Opacity": {
+      "human_ceiling": 0.263,
+      "yolov8s_mAP": 0.097,
+      "fraction_of_ceiling": 0.369
+    },
+    "Nodule/Mass": {
+      "human_ceiling": 0.356,
+      "yolov8s_mAP": 0.149,
+      "fraction_of_ceiling": 0.419
+    },
+    "Other lesion": {
+      "human_ceiling": 0.238,
+      "yolov8s_mAP": 0.029,
+      "fraction_of_ceiling": 0.122
+    },
+    "Pleural effusion": {
+      "human_ceiling": 0.252,
+      "yolov8s_mAP": 0.17,
+      "fraction_of_ceiling": 0.675
+    },
+    "Pleural thickening": {
+      "human_ceiling": 0.163,
+      "yolov8s_mAP": 0.063,
+      "fraction_of_ceiling": 0.386
+    },
+    "Pneumothorax": {
+      "human_ceiling": 0.585,
+      "yolov8s_mAP": 0.15,
+      "fraction_of_ceiling": 0.256
+    },
+    "Pulmonary fibrosis": {
+      "human_ceiling": 0.259,
+      "yolov8s_mAP": 0.099,
+      "fraction_of_ceiling": 0.383
+    }
+  },
+  "observations": [
+    "Model exceeds the human ceiling on Cardiomegaly (109%) and Aortic enlargement (112%), consistent with having learned WBF-merged consensus targets \u2014 it predicts the average of three radiologists, which agrees with any individual better than two individuals agree with each other.",
+    "The ceiling is low across most classes (Pleural thickening 0.163, Other lesion 0.238), indicating limited achievable performance rather than model failure.",
+    "Calcification (11.8% of ceiling) and Other lesion (12.2%) show the largest unrealised headroom.",
+    "Pneumothorax is the clearest candidate for a data-volume constraint: ceiling 0.585 (second highest) but only 25.6% realised, on 96 training images."
+  ]
+}
