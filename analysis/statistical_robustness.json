@@ -1,0 +1,33 @@
+{
+  "IoU_agreement_vs_wbf": {
+    "rho": 0.7274725274725276,
+    "p_asymptotic": 0.00319061631898815,
+    "p_permutation": 0.004499955000449996,
+    "ci": [
+      0.2366071428571429,
+      0.9863636363636366
+    ],
+    "p_bonferroni_3": 0.013499865001349988
+  },
+  "IoU_agreement_vs_consensus": {
+    "rho": 0.8021978021978022,
+    "p_asymptotic": 0.0005563056127922433,
+    "p_permutation": 0.000999990000099999,
+    "ci": [
+      0.4732142857142858,
+      0.9287305122494431
+    ],
+    "p_bonferroni_3": 0.0029999700002999972
+  },
+  "kalpha50_vs_wbf": {
+    "rho": 0.6211468812407446,
+    "p_asymptotic": 0.017746113249183876,
+    "p_permutation": 0.02028979710202898,
+    "ci": [
+      0.060109458277675595,
+      0.9318441570765258
+    ],
+    "p_bonferroni_3": 0.06086939130608694
+  },
+  "_note": "Three confirmatory tests. Bonferroni-corrected permutation p-values shown. The two IoU-agreement correlations survive correction; K-alpha@0.5 does not and is reported as supporting evidence rather than a primary claim."
+}
