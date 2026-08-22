@@ -223,6 +223,22 @@ This is a *reference*, not a strict upper bound. The model exceeds it on two cla
 
 *This measure is precision-style — the fraction of one radiologist's boxes matching another's at each threshold — and omits recall and confidence ranking. It bounds achievable agreement rather than reproducing the model metric exactly, so the percentages are indicative rather than exact.*
 
+### Statistical robustness
+
+With 14 class-level observations, Spearman's asymptotic p-value rests on a large-sample approximation that does not hold. Permutation tests (100,000 permutations, no distributional assumption) and bootstrap confidence intervals over classes (10,000 resamples) were computed for all three primary correlations.
+
+| Test | ρ | permutation p | 95% CI | Bonferroni (m=3) |
+|---|---|---|---|---|
+| IoU agreement vs consensus mAP | +0.802 | 0.0010 | [+0.473, +0.929] | 0.0030 |
+| IoU agreement vs WBF-split mAP | +0.727 | 0.0045 | [+0.237, +0.986] | 0.0135 |
+| K-α@0.5 vs WBF-split mAP | +0.621 | 0.0203 | [+0.060, +0.932] | 0.0609 |
+
+Permutation p-values track the asymptotic estimates closely, indicating the small sample is not badly distorting significance. The two IoU-agreement correlations survive Bonferroni correction; **K-α@0.5 does not**, and is reported here as supporting evidence rather than a primary claim.
+
+The confidence intervals are wide, as expected at n = 14. The consensus-set interval is the narrowest despite being computed on 300 rather than 660 images — the relationship is cleaner against annotations independent of those used to compute agreement.
+
+The result excluding the two top-performing classes (ρ = +0.580, p = 0.048) is **exploratory**, not confirmatory: it was computed after observing the primary result and does not survive correction.
+
 **Caveats.** n = 14 classes limits statistical power. The consensus evaluation used a 300-image subsample enriched for abnormal cases, so its absolute mAP (0.063 mAP@0.5:0.95) is not comparable to a full-test-set benchmark figure. Consensus boxes also follow a different annotation convention from WBF-merged training boxes, which likely accounts for part of the absolute drop — Aortic enlargement falls from 0.590 to 0.066 with recall 0.545 but precision 0.217, consistent with correct detection under a different boxing convention rather than outright failure.
 
 ---
