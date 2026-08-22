@@ -210,29 +210,11 @@ The correlation is **stronger** against independent labels, not weaker. Class ra
 
 **Conclusion.** Detection performance on this dataset is predicted by inter-radiologist localisation agreement, and not by training-set size, lesion area, or architecture. The practical implication is that reported per-class numbers on low-agreement findings measure annotation consistency as much as model capability: a detector scoring 0.06 on Pleural thickening may be near the ceiling the labels permit.
 
-### Human-level ceiling
+### Single-radiologist agreement reference
 
-If agreement bounds performance, the natural question is how much headroom remains. Treating each radiologist's boxes as predictions against the others' as ground truth — scored at IoU 0.50:0.95:0.05 and averaged — gives a per-class ceiling on achievable localisation consistency.
+If agreement bounds performance, the natural question is how much headroom remains. Treating each radiologist's boxes as predictions against the others' as ground truth — scored at IoU 0.50:0.95:0.05 and averaged — gives a per-class reference for inter-reader localisation consistency.
 
-| Class | Human ceiling | YOLOv8s | Fraction realised |
-|---|---|---|---|
-| Cardiomegaly | 0.599 | 0.655 | 109% |
-| Aortic enlargement | 0.527 | 0.590 | 112% |
-| Pleural effusion | 0.252 | 0.170 | 68% |
-| Atelectasis | 0.265 | 0.117 | 44% |
-| Nodule/Mass | 0.356 | 0.149 | 42% |
-| Pleural thickening | 0.163 | 0.063 | 39% |
-| Pulmonary fibrosis | 0.259 | 0.099 | 38% |
-| Consolidation | 0.375 | 0.142 | 38% |
-| Lung Opacity | 0.263 | 0.097 | 37% |
-| ILD | 0.353 | 0.122 | 35% |
-| Infiltration | 0.323 | 0.105 | 33% |
-| Pneumothorax | 0.585 | 0.150 | 26% |
-| Other lesion | 0.238 | 0.029 | 12% |
-| Calcification | 0.306 | 0.036 | 12% |
-
-Three groups emerge, which is a more useful description than "two classes work and twelve fail":
-
+This is a *reference*, not a strict upper bound. The model exceeds it on two classes (109% and 112%), which is possible because the model was trained on WBF-merged targets: it predicts the average of three radiologists, and an average necessarily agrees with any individual better than two individuals agree with each other. A consensus-trained model can therefore exceed single-reader consistency without exceeding what the labels support.
 **The model matches or exceeds human consistency on Cardiomegaly and Aortic enlargement.** This is not superhuman performance. The model was trained on WBF-merged targets, so it predicts the *average* of three radiologists — which necessarily agrees with any individual better than two individuals agree with each other. The correct reading is that these classes are saturated.
 
 **Most classes have a low ceiling.** Pleural thickening tops out at 0.163: radiologists match each other only 16% of the time at these thresholds. Other lesion 0.238, Lung Opacity 0.263. These are not hard problems the model is failing — they are problems without a stable ground truth.
