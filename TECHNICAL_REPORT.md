@@ -272,20 +272,22 @@ It was not deployed. The speedup is immaterial for single-image interactive use,
 
 ## 11. What Would Actually Help
 
-Three hypotheses were tested and rejected; one held.
+Several candidate explanations were examined. Their status varies, and it is worth being precise about which were tested and which were merely unavailable.
 
-**Rejected: architecture.** YOLOv8s outperformed Faster R-CNN on all 14 classes with a quarter of the parameters, without changing which classes fail.
+**Weakened: architecture.** YOLOv8s outperformed Faster R-CNN on all 14 classes with a quarter of the parameters, yet the class ordering was essentially unchanged. Two detectors cannot eliminate architecture as a factor, but the persistence of the ordering across substantially different designs makes it unlikely to be the primary driver.
 
-**Rejected: training-set size.** ρ = +0.055 (p = 0.85) against per-class mAP.
+**No relationship found: training-set size.** ρ = +0.055 (p = 0.85) against per-class mAP. Note this uses image count; box count, positive-image prevalence, and annotation completeness were not separately modelled.
 
-**Rejected: input resolution.** Native images are 3072×3072, a 6× downsample to 512px. A median Calcification box becomes roughly 27×27 pixels at input scale — above the 32px COCO "small object" threshold and well within YOLOv8's finest detection stride of 8px. Resolution is unlikely to be limiting for these classes.
+**Untested: input resolution.** Native images are 3072×3072, a 6× downsample to 512px input, at which a median Calcification box spans roughly 27×27 pixels — above the 32px COCO small-object threshold. This box-size analysis does not support resolution as the primary explanation, but it does not rule it out: radiographic findings may depend on texture and contrast that survive poorly at 6× downsampling regardless of box extent. A controlled 512 versus 1024 experiment would be required, and was not run.
 
-**Held: inter-radiologist agreement.** ρ = +0.727 against the WBF split, +0.802 against independent consensus labels, robust to partial correlation and leave-one-out.
+**Unavailable: targeted data augmentation.** Of 535 images containing the high-headroom classes that were absent from the training subset, 442 are already allocated to validation or test; adding them would constitute leakage. Only 26 usable images remain. This means the intervention could not be performed within this dataset — it is not evidence that additional data would fail to help.
 
-Given that, the useful directions are not more data or bigger models:
+**Confidence ranking, not calibration.** At threshold 0.001 the model produces 889 Calcification predictions across 61 of 67 test images, of which 13% reach IoU ≥ 0.5, with hit rate rising monotonically from 7.5% (conf 0.001–0.01) to 60% (conf ≥ 0.25). The score ordering is therefore informative. This does not establish calibration for the class, which would require a per-class reliability curve and ECE; it shows only that low-confidence Calcification predictions are predominantly incorrect and would not become usable by rescaling.
 
-- **Report agreement alongside per-class metrics.** A benchmark number on a low-agreement class conflates model capability with label consistency, and the two should be separable.
-- **Model annotation uncertainty explicitly** rather than collapsing radiologists into a single consensus box — soft targets or per-annotator supervision.
-- **Target the classes with real headroom.** The ceiling analysis identifies Calcification, Other lesion, and Pneumothorax as the only classes where substantial achievable performance goes unrealised. Pneumothorax in particular combines high annotation agreement (0.585 ceiling) with very few training examples (96), making it the one case where more data is plausibly the fix.
-**A targeted data experiment was attempted and found infeasible.** The ceiling analysis identified Pneumothorax, Calcification, and Other lesion as the only classes with substantial unrealised headroom. Of the 535 images containing these findings that were absent from the training subset, 442 are already allocated to validation or test — adding them would constitute leakage. Only 26 usable images remain, raising the training set from 3,075 to 3,101 (under 1%). The class-balanced sampler and stratified split between them had already allocated nearly every existing rare-class image, so no meaningful data augmentation is available within this dataset.
-- **Extend to all 22 local labels** to raise n beyond 14, which is the binding constraint on statistical power here.
+**Supported: inter-radiologist agreement.** ρ = +0.727 against the WBF split, +0.802 against independent consensus labels, robust to partial correlation and leave-one-out.
+
+Directions that follow:
+
+- **A controlled resolution experiment** — the one hypothesis the box-size analysis leaves genuinely open.
+- **Report agreement alongside per-class metrics**, so model capability and label consistency are separable.
+- **Model annotation uncertainty explicitly** rather than collapsing radiologists into a single consensus box.
