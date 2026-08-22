@@ -1,0 +1,64 @@
+{
+  "setup": {
+    "n_images": 300,
+    "n_boxes": 1363,
+    "sampling": "greedy class-coverage selection from 946 abnormal test images",
+    "labels": "official VinDr-CXR consensus (5 radiologists, 2 senior adjudicators)",
+    "independence": "test annotations share no radiologists or process with the training annotations used to compute agreement"
+  },
+  "overall": {
+    "map50": 0.1675160081727434,
+    "map50_95": 0.06337380005391346
+  },
+  "per_class_consensus": {
+    "Aortic enlargement": 0.0659,
+    "Atelectasis": 0.0032,
+    "Calcification": 0.0096,
+    "Cardiomegaly": 0.3477,
+    "Consolidation": 0.0566,
+    "ILD": 0.059,
+    "Infiltration": 0.0964,
+    "Lung Opacity": 0.0061,
+    "Nodule/Mass": 0.1085,
+    "Other lesion": 0.0054,
+    "Pleural effusion": 0.0318,
+    "Pleural thickening": 0.0214,
+    "Pneumothorax": 0.0453,
+    "Pulmonary fibrosis": 0.0301
+  },
+  "per_class_wbf_split": {
+    "Aortic enlargement": 0.59,
+    "Atelectasis": 0.117,
+    "Calcification": 0.036,
+    "Cardiomegaly": 0.655,
+    "Consolidation": 0.142,
+    "ILD": 0.122,
+    "Infiltration": 0.105,
+    "Lung Opacity": 0.097,
+    "Nodule/Mass": 0.149,
+    "Other lesion": 0.029,
+    "Pleural effusion": 0.17,
+    "Pleural thickening": 0.063,
+    "Pneumothorax": 0.15,
+    "Pulmonary fibrosis": 0.099
+  },
+  "correlations": {
+    "agreement_vs_consensus_mAP": {
+      "rho": 0.802,
+      "p": 0.0006
+    },
+    "agreement_vs_wbf_mAP": {
+      "rho": 0.727,
+      "p": 0.0032
+    },
+    "wbf_mAP_vs_consensus_mAP": {
+      "rho": 0.705,
+      "p": 0.0048
+    }
+  },
+  "caveats": [
+    "n=14 classes limits statistical power.",
+    "300-image subsample, enriched for abnormal cases \u2014 overall mAP not comparable to a full-test-set benchmark figure.",
+    "Consensus boxes follow a different annotation convention from WBF-merged training boxes, which may account for part of the absolute performance drop."
+  ]
+}

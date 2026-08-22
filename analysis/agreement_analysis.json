@@ -1,0 +1,139 @@
+{
+  "hypothesis": "Detection performance is bounded by inter-radiologist localisation agreement rather than training-set size, lesion area, or architecture.",
+  "method": "For each (image, class) with >=2 annotating radiologists, computed best-matching pairwise IoU between each pair of radiologists, then averaged per class. Measures localisation agreement given presence, not agreement on presence.",
+  "per_class": {
+    "Cardiomegaly": {
+      "mean_pairwise_iou": 0.7314,
+      "n_cases": 1817,
+      "mAP_50_95": 0.655,
+      "train_images": 2316,
+      "median_box_area": 396385.4156691609
+    },
+    "Aortic enlargement": {
+      "mean_pairwise_iou": 0.6834,
+      "n_cases": 2346,
+      "mAP_50_95": 0.59,
+      "train_images": 3098,
+      "median_box_area": 96503.37298119003
+    },
+    "Pleural effusion": {
+      "mean_pairwise_iou": 0.5048,
+      "n_cases": 634,
+      "mAP_50_95": 0.17,
+      "train_images": 1038,
+      "median_box_area": 62367.444775870834
+    },
+    "Pneumothorax": {
+      "mean_pairwise_iou": 0.7011,
+      "n_cases": 58,
+      "mAP_50_95": 0.15,
+      "train_images": 96,
+      "median_box_area": 530909.303515922
+    },
+    "Nodule/Mass": {
+      "mean_pairwise_iou": 0.653,
+      "n_cases": 409,
+      "mAP_50_95": 0.149,
+      "train_images": 841,
+      "median_box_area": 10011.918535851555
+    },
+    "Consolidation": {
+      "mean_pairwise_iou": 0.6087,
+      "n_cases": 121,
+      "mAP_50_95": 0.142,
+      "train_images": 353,
+      "median_box_area": 235991.8947148177
+    },
+    "ILD": {
+      "mean_pairwise_iou": 0.6007,
+      "n_cases": 152,
+      "mAP_50_95": 0.122,
+      "train_images": 397,
+      "median_box_area": 548439.0651073789
+    },
+    "Atelectasis": {
+      "mean_pairwise_iou": 0.4854,
+      "n_cases": 62,
+      "mAP_50_95": 0.117,
+      "train_images": 187,
+      "median_box_area": 272438.91852777207
+    },
+    "Infiltration": {
+      "mean_pairwise_iou": 0.5657,
+      "n_cases": 245,
+      "mAP_50_95": 0.105,
+      "train_images": 613,
+      "median_box_area": 244911.72487794235
+    },
+    "Pulmonary fibrosis": {
+      "mean_pairwise_iou": 0.5168,
+      "n_cases": 1017,
+      "mAP_50_95": 0.099,
+      "train_images": 1621,
+      "median_box_area": 75729.00702488386
+    },
+    "Lung Opacity": {
+      "mean_pairwise_iou": 0.5071,
+      "n_cases": 547,
+      "mAP_50_95": 0.097,
+      "train_images": 1331,
+      "median_box_area": 151714.7750817999
+    },
+    "Pleural thickening": {
+      "mean_pairwise_iou": 0.4434,
+      "n_cases": 882,
+      "mAP_50_95": 0.063,
+      "train_images": 2010,
+      "median_box_area": 31329.547323230945
+    },
+    "Calcification": {
+      "mean_pairwise_iou": 0.5451,
+      "n_cases": 177,
+      "mAP_50_95": 0.036,
+      "train_images": 458,
+      "median_box_area": 27205.972001620587
+    },
+    "Other lesion": {
+      "mean_pairwise_iou": 0.4755,
+      "n_cases": 362,
+      "mAP_50_95": 0.029,
+      "train_images": 1154,
+      "median_box_area": 119592.112471145
+    }
+  },
+  "correlations_with_mAP": {
+    "inter_radiologist_agreement": {
+      "rho": 0.727,
+      "p": 0.0032
+    },
+    "positional_spread": {
+      "rho": -0.433,
+      "p": 0.122
+    },
+    "median_box_area": {
+      "rho": 0.292,
+      "p": 0.3105
+    },
+    "training_set_size": {
+      "rho": 0.055,
+      "p": 0.852
+    }
+  },
+  "robustness": {
+    "partial_agreement_controlling_area": 0.698,
+    "partial_agreement_controlling_images": 0.734,
+    "partial_area_controlling_agreement": 0.064,
+    "leave_one_out_range": [
+      0.659,
+      0.89
+    ],
+    "leave_one_out_all_significant": true,
+    "excluding_two_top_performers": {
+      "n": 12,
+      "rho": 0.58,
+      "p": 0.0479
+    }
+  },
+  "caveat": "Evaluation ground truth is a WBF merge of the same annotations used to compute agreement. Low agreement therefore produces both a noisier training target and a noisier evaluation metric; part of the correlation may reflect measurement unreliability rather than model capability. Evaluating on the official consensus test set (5 radiologists, independent of training annotations) would break this circularity.",
+  "n_classes": 14
+}
