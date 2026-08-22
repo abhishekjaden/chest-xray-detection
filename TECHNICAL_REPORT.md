@@ -159,17 +159,65 @@ YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of
 
 ---
 
-## 8. Engineering
+## 8. Evidence 5 — Inter-Radiologist Agreement
 
-**Serving.** The deployed demo runs YOLOv8s on Hugging Face Spaces via Gradio, accepting PNG, JPG, and DICOM. A FastAPI service provides JSON detections, an annotated-image endpoint, DICOM support, and input validation with size limits and graceful error handling. A React frontend adds client-side threshold filtering and per-class toggles.
+Sections 3 and 7 rejected two explanations for the per-class failures: training-set size (ρ = +0.055, p = 0.85) and architecture. This section tests a third, and finds it holds.
 
-**Model swap.** Moving from Faster R-CNN to YOLOv8s required refitting calibration against the new score distribution — the previous curve was fitted to a different model and would have produced wrong confidences. The inference engine was rewritten while keeping the public interface identical (`predict`, `draw_detections`, `read_dicom`), so the API, tests, and demo needed no changes. The existing test suite served as the regression check.
+**Hypothesis.** If radiologists disagree about *where* a finding is, the training target is inconsistent and the model cannot learn a stable localisation. Performance would then be bounded by annotation agreement rather than by model capacity or data volume.
 
-**ONNX export — evaluated, not deployed.** The model was exported to ONNX (opset 12, fixed 512×512 input) with post-processing — anchor-free box decoding and per-class NMS — reimplemented from the raw `(1, 18, 5376)` output. Verified against ultralytics on test images: identical classes, identical scores, **0.00px maximum box difference** across all detections. Benchmarked at 163.9 ms/image versus 186.7 ms for ultralytics on CPU — a 1.14× speedup.
+**Method.** Each training image was annotated independently by three radiologists. For every (image, class) pair with at least two annotators, the best-matching box pair between each pair of radiologists was found and its IoU recorded, then averaged per class. This measures localisation agreement *given* presence — it does not capture disagreement about whether a finding is there at all.
 
-It was not deployed. The speedup is immaterial for single-image interactive use, the ONNX file is larger (42.6 MB vs 22.5 MB), and replacing library-maintained post-processing with hand-written decoding introduces maintenance risk against a calibration curve fitted to ultralytics' NMS behaviour. The export script and verification results are in the repository (`export_onnx.py`, `analysis/onnx_evaluation.json`).
+| Class | Mean pairwise IoU | Cases | mAP@0.5:0.95 |
+|---|---|---|---|
+| Cardiomegaly | 0.731 | 1,817 | 0.655 |
+| Pneumothorax | 0.701 | 58 | 0.150 |
+| Aortic enlargement | 0.683 | 2,346 | 0.590 |
+| Nodule/Mass | 0.653 | 409 | 0.149 |
+| Consolidation | 0.609 | 121 | 0.142 |
+| ILD | 0.601 | 152 | 0.122 |
+| Infiltration | 0.566 | 245 | 0.105 |
+| Calcification | 0.545 | 177 | 0.036 |
+| Pulmonary fibrosis | 0.517 | 1,017 | 0.099 |
+| Lung Opacity | 0.507 | 547 | 0.097 |
+| Pleural effusion | 0.505 | 634 | 0.170 |
+| Atelectasis | 0.485 | 62 | 0.117 |
+| Other lesion | 0.476 | 362 | 0.029 |
+| Pleural thickening | 0.443 | 882 | 0.063 |
 
-**Practices.** 7 endpoint tests covering happy paths and error cases, running in CI on every push; calibration validated on held-out data before deployment; version-independent artifact storage; honest scoping throughout.
+![Agreement vs performance](analysis/agreement_vs_map.png)
+
+**Result: ρ = +0.727, p = 0.0032.** Agreement is by a wide margin the strongest predictor tested:
+
+| Variable | Spearman ρ | p |
+|---|---|---|
+| **Inter-radiologist agreement** | **+0.727** | **0.0032** |
+| Positional spread | −0.433 | 0.1220 |
+| Median box area | +0.292 | 0.3105 |
+| Training-set size | +0.055 | 0.8520 |
+
+**Robustness.** The relationship survives every check applied:
+
+- Controlling for box area: ρ = +0.698. Controlling for training-set size: ρ = +0.734 — essentially unchanged.
+- Box area controlling for agreement collapses to ρ = +0.064, indicating lesion size was tracking agreement rather than predicting performance independently.
+- Leave-one-out across all 14 classes: ρ ranges +0.659 to +0.890, significant in every case.
+- Excluding both top performers, so mAP spans only 0.03–0.17: ρ = +0.580, p = 0.048. The relationship holds *within* the failing classes.
+
+### Independent confirmation
+
+The analysis above has a circularity problem: the evaluation ground truth is a WBF merge of the same annotations from which agreement was computed. Low agreement produces both a noisier training target and a noisier metric, so part of the correlation could reflect measurement unreliability.
+
+To break this, both models were re-evaluated against the **official VinDr-CXR consensus test set** — 300 images sampled for class coverage, annotated by five radiologists with two senior reviewers resolving disagreements. These annotations share no radiologists or process with the training set.
+
+| | Agreement vs mAP | p |
+|---|---|---|
+| WBF-merged split (circular) | +0.727 | 0.0032 |
+| **Consensus test set (independent)** | **+0.802** | **0.0006** |
+
+The correlation is **stronger** against independent labels, not weaker. Class rankings are also stable across the two evaluations (ρ = +0.705, p = 0.005), so the difference between them is a level shift rather than a reordering.
+
+**Conclusion.** Detection performance on this dataset is predicted by inter-radiologist localisation agreement and not by training-set size, lesion area, or architecture. The practical implication is that reported per-class numbers on the low-agreement findings measure annotation consistency as much as model capability: a detector scoring 0.06 on Pleural thickening may be near the ceiling the labels permit.
+
+**Caveats.** n = 14 classes limits statistical power. The consensus evaluation used a 300-image subsample enriched for abnormal cases, so its absolute mAP (0.063 mAP@0.5:0.95) is not comparable to a full-test-set benchmark figure. Consensus boxes also follow a different annotation convention from WBF-merged training boxes, which likely accounts for part of the absolute performance drop — Aortic enlargement falls from 0.590 to 0.066 with recall 0.545 but precision 0.217, consistent with correct detection under a different boxing convention rather than outright failure.
 
 
 ---
