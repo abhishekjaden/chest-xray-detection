@@ -1,6 +1,6 @@
 # Technical Report: Chest X-Ray Abnormality Detection
 
-An end-to-end study of object detection for thoracic abnormalities in chest radiographs, covering model development, deployment, and — the main contribution — a rigorous evaluation of *why* the model performs as it does.
+An end-to-end study of object detection for thoracic abnormalities in chest radiographs, covering model development, deployment, and — the main contribution — an investigation into *why* per-class performance varies as it does.
 
 > **Educational / research demonstration only. Not a diagnostic device. Not clinically validated.**
 
@@ -10,11 +10,11 @@ An end-to-end study of object detection for thoracic abnormalities in chest radi
 
 ## 1. Problem and Data
 
-Multi-class object detection over 14 thoracic findings, using the VinBigData Chest X-ray dataset.
+Multi-class object detection over 14 thoracic findings, using the VinDr-CXR / VinBigData chest X-ray dataset.
 
 **Label fusion.** Each image carries annotations from multiple radiologists, who frequently disagree on both presence and extent of findings. Rather than treating each annotation as independent ground truth, overlapping boxes were merged with Weighted Boxes Fusion, reducing 36,096 raw annotations to 22,719 consensus boxes (a 37% reduction).
 
-**Splits.** Stratified into 3,075 train / 659 validation / 660 test images. All results are measured on the held-out test split unless stated otherwise.
+**Splits.** Stratified into 3,075 train / 659 validation / 660 test images. Results are on the held-out test split unless stated otherwise.
 
 **Class imbalance.** Roughly 65:1 within the sampled subset — Aortic enlargement in 974 images, Atelectasis in 15. This appeared to be the central constraint, and Section 3 tests that assumption against the full dataset.
 
@@ -24,7 +24,7 @@ Multi-class object detection over 14 thoracic findings, using the VinBigData Che
 
 Two detectors were trained on identical data and splits.
 
-**Faster R-CNN** (ResNet-50 FPN, 41.3M params), COCO-pretrained. Class-balanced sampling oversampled rare-finding images up to 28×. Validation loss bottomed at epoch 4 and rose thereafter while training loss kept falling — clear overfitting, so the epoch-4 checkpoint was selected. Test-time augmentation (horizontal flip + WBF fusion) improved mAP@0.5:0.95 from 0.126 to 0.132 at no training cost.
+**Faster R-CNN** (ResNet-50 FPN, 41.3M params), COCO-pretrained. Class-balanced sampling oversampled rare-finding images up to 28×. Validation loss bottomed at epoch 4 and rose thereafter while training loss kept falling — clear overfitting, so the epoch-4 checkpoint was selected. Test-time augmentation (horizontal flip + WBF fusion) improved mAP@0.5:0.95 from 0.126 to 0.132.
 
 **YOLOv8s** (11.1M params), COCO-pretrained, same 512px inputs and splits. Trained 46 epochs with early stopping (best at 36), default Ultralytics augmentation, single-pass inference.
 
@@ -35,7 +35,7 @@ Two detectors were trained on identical data and splits.
 | mAP@0.5:0.95 | 0.132 | **0.180** |
 | Inference | two-pass + WBF | ~7 ms/image |
 
-Both are comparable to or better than published competition baselines for this dataset. **YOLOv8s is the deployed model.**
+**YOLOv8s is the deployed model.**
 
 ---
 
@@ -69,11 +69,9 @@ Overall mAP conceals a two-tier structure (YOLOv8s, mAP@0.5:0.95):
 | Positional spread | −0.433 | 0.12 |
 | Boxes per image | +0.233 | 0.42 |
 
-Training-set size shows no relationship with performance (ρ = +0.055, p = 0.85). The clearest counter-example: Pleural thickening has 2,010 training images and scores 0.063, while Cardiomegaly has 2,316 and scores 0.655 — near-identical volume, tenfold difference. Pneumothorax scores 0.150 on 96 images, the second-fewest in the dataset.
+Training-set size shows no relationship with performance. The clearest counter-example: Pleural thickening has 2,010 training images and scores 0.063, while Cardiomegaly has 2,316 and scores 0.655 — near-identical volume, tenfold difference. Pneumothorax scores 0.150 on 96 images, the second-fewest in the dataset.
 
-Positional spread — the standard deviation of annotation centroids, a proxy for anatomical constraint — shows the strongest association and in the expected direction (ρ = −0.433), but **does not reach significance at n = 14**. The two best-performing classes are the two occupying fixed anatomical positions: the heart and the aortic knob are always in the same place, so the detector measures rather than searches. This is suggestive, not established.
-
-**The honest conclusion is that data volume does not explain the failures, and what does remains unproven.** With only 14 classes, the analysis lacks power to distinguish among candidate explanations. The positional-spread measure is also computed in raw DICOM coordinates without normalising for image dimensions, so some spread reflects image-size variation rather than anatomical variation.
+Section 8 identifies what does predict performance.
 
 ---
 
@@ -86,23 +84,21 @@ Ground truth (green) beside predictions (red) across test images shows a consist
 - **Well-represented classes are detected accurately and localised tightly.** Cardiomegaly and Aortic enlargement predictions closely match ground truth.
 - **The persistently failing classes produce false positives.** On difficult images the model floods the field with low-confidence boxes for Pneumothorax, Other lesion, and Pleural thickening — findings it detects poorly regardless of how many training examples exist for them.
 
-The failure mode is not "missing findings" but "guessing" on classes it never learned.
-
 ---
 
 ## 5. Evidence 2 — Confidence Calibration
 
-If a model is guessing on rare classes, its confidence scores should be untrustworthy. Both models were poorly calibrated — in opposite directions.
+Both models were poorly calibrated — in opposite directions.
 
-**Method.** Every prediction above 0.05 was scored for correctness (IoU > 0.4 against a same-class ground-truth box) and binned by confidence. Calibrators were fitted on the validation split and evaluated on test.
+**Method.** Every prediction above 0.05 was scored for correctness (IoU > 0.4 against a same-class ground-truth box) and binned by confidence. Calibrators were fitted on validation and evaluated on test.
 
 ### Faster R-CNN: over-confident
 
-24,457 test predictions. Expected Calibration Error was 0.046 overall — but misleading, because 73% of predictions fall below 0.2 confidence where the model happens to be well calibrated. Restricted to actionable predictions (≥ 0.25), **ECE was 0.155**: a prediction claiming 75% confidence was correct only 40% of the time.
+24,457 test predictions. ECE was 0.046 overall — but misleading, because 73% of predictions fall below 0.2 confidence where the model happens to be well calibrated. Restricted to actionable predictions (≥ 0.25), **ECE was 0.155**: a prediction claiming 75% confidence was correct only 40% of the time.
 
-**Temperature scaling failed.** T = 1.018, a 0.7% ECE reduction — essentially nothing. The reason is diagnostic: temperature scaling applies a single monotonic transform, but the miscalibration here is *non-uniform* — accurate at both extremes, badly over-confident in the middle. No single temperature corrects that shape.
+**Temperature scaling failed.** T = 1.018, a 0.7% ECE reduction. The reason is diagnostic: temperature scaling applies a single monotonic transform, but the miscalibration is *non-uniform* — accurate at both extremes, badly over-confident in the middle.
 
-**Isotonic regression worked.** Non-parametric, so it fits an arbitrary monotonic mapping.
+**Isotonic regression worked.**
 
 | | ECE (all) | ECE (score ≥ 0.25) |
 |---|---|---|
@@ -114,20 +110,19 @@ If a model is guessing on rare classes, its confidence scores should be untrustw
 
 ### YOLOv8s: under-confident
 
-6,754 test predictions — 3.6× fewer than Faster R-CNN, at more than double the precision (0.458 vs ~0.20). A far less trigger-happy detector.
+6,754 test predictions — 3.6× fewer than Faster R-CNN, at more than double the precision (0.458 vs ~0.20).
 
-But its scores understate its accuracy at every level: raw 0.07 was correct 32% of the time, raw 0.35 was correct 62%, raw 0.83 was correct 99%. Raw ECE 0.249; isotonic calibration reduced it by **93.7% to 0.016**.
+Its scores understate its accuracy at every level: raw 0.07 was correct 32% of the time, raw 0.35 was correct 62%, raw 0.83 was correct 99%. Raw ECE 0.249; isotonic calibration reduced it by **93.7% to 0.016**.
+
 ![YOLOv8s reliability diagram](analysis/calibration_yolo_reliability.png)
 
 The curve sits *above* the diagonal — the visual signature of under-confidence, mirroring Faster R-CNN's sag below it. Same fix, opposite direction.
 
-**Output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, but that estimate rested on 4 test samples in the top bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE, a trade worth making.
+**Output is capped at 0.95.** The uncapped fit mapped high scores to a literal 1.0, resting on 4 test samples in the top bin — not statistically supported, and inappropriate to display as certainty in a medical context. The cap costs 0.0012 ECE.
 
 **Known limitation:** the fit has flat regions where distinct raw scores collapse to the same calibrated value (0.35 and 0.55 both → 0.69), from monotonicity enforcement through noisy mid-range bins.
 
-**Deployed.** The YOLOv8s calibrator is live. It is stored as a plain JSON curve (`np.interp` lookup) rather than a pickled model object — version-independent and dependency-free, after an sklearn version warning on the original pickle showed that fragility was real.
-
-Calibration does not improve detection accuracy; mAP is unchanged. It makes the confidence numbers honest, which for a medical demonstration matters independently.
+**Deployed.** The YOLOv8s calibrator is live, stored as a plain JSON curve (`np.interp` lookup) rather than a pickled model — version-independent after an sklearn version warning showed that fragility was real. Calibration does not improve detection accuracy; it makes the confidence numbers honest.
 
 ---
 
@@ -135,15 +130,13 @@ Calibration does not improve detection accuracy; mAP is unchanged. It makes the 
 
 ![Attention heatmap](analysis/gradcam_explainability.png)
 
-Backbone feature-activation mapping (measured on Faster R-CNN) shows the model attends to thoracic anatomy — cardiac silhouette and lung fields — rather than image borders or artifacts. It has learned anatomically meaningful features.
-
-Attention is *diffuse* rather than sharply localised, consistent with the over-prediction seen in the failure analysis.
+Backbone feature-activation mapping (measured on Faster R-CNN) shows the model attends to thoracic anatomy — cardiac silhouette and lung fields — rather than image borders or artifacts. Attention is *diffuse* rather than sharply localised, consistent with the over-prediction seen in the failure analysis.
 
 ---
 
 ## 7. Evidence 4 — Architecture Comparison
 
-The strongest test of the data-scarcity hypothesis is interventional: change the architecture and see whether the limitation persists.
+The first interventional test: change the architecture and see whether the limitation persists.
 
 **Setup.** Identical data, splits, 512px inputs, and metric, on the same 660 test images.
 
@@ -151,9 +144,9 @@ The strongest test of the data-scarcity hypothesis is interventional: change the
 
 YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of the parameters.
 
-**But the limitation persists.** Absolute gains concentrate in well-represented classes (Cardiomegaly +0.114, Aortic enlargement +0.083), while data-scarce classes remain unusable: Calcification 0.036, Other lesion 0.029. In relative terms the rare classes improved as much or more — Atelectasis and Pneumothorax both roughly doubled — but from a base so low that doubling changes nothing practical.
+**But the limitation persists.** Absolute gains concentrate in the already-working classes (Cardiomegaly +0.114, Aortic enlargement +0.083), while the failing classes remain unusable: Calcification 0.036, Other lesion 0.029.
 
-**Conclusion:** a substantially better architecture lifts performance across the board but does not change which classes fail. Architecture is not the binding constraint. Section 3 shows that data volume isn't either — the same twelve classes fail in both models regardless of how many training examples they have.
+**Conclusion:** a substantially better architecture lifts performance across the board but does not change which classes fail. Architecture is not the binding constraint, and Section 3 shows data volume isn't either.
 
 *Caveat: the two models were trained with their conventional recipes (different epoch counts, augmentation stacks, and TTA), so this compares architectures as normally trained rather than isolating architecture alone.*
 
@@ -161,7 +154,7 @@ YOLOv8s outperforms Faster R-CNN **on all 14 classes** with roughly a quarter of
 
 ## 8. Evidence 5 — Inter-Radiologist Agreement
 
-Sections 3 and 7 rejected two explanations for the per-class failures: training-set size (ρ = +0.055, p = 0.85) and architecture. This section tests a third, and finds it holds.
+Sections 3 and 7 rejected training-set size and architecture. This section tests a third explanation, and finds it holds.
 
 **Hypothesis.** If radiologists disagree about *where* a finding is, the training target is inconsistent and the model cannot learn a stable localisation. Performance would then be bounded by annotation agreement rather than by model capacity or data volume.
 
@@ -206,7 +199,7 @@ Sections 3 and 7 rejected two explanations for the per-class failures: training-
 
 The analysis above has a circularity problem: the evaluation ground truth is a WBF merge of the same annotations from which agreement was computed. Low agreement produces both a noisier training target and a noisier metric, so part of the correlation could reflect measurement unreliability.
 
-To break this, both models were re-evaluated against the **official VinDr-CXR consensus test set** — 300 images sampled for class coverage, annotated by five radiologists with two senior reviewers resolving disagreements. These annotations share no radiologists or process with the training set.
+To break this, the model was re-evaluated against the **official VinDr-CXR consensus test set** — 300 images sampled for class coverage, annotated by five radiologists with two senior reviewers resolving disagreements. These annotations share no radiologists or process with the training set.
 
 | | Agreement vs mAP | p |
 |---|---|---|
@@ -215,32 +208,52 @@ To break this, both models were re-evaluated against the **official VinDr-CXR co
 
 The correlation is **stronger** against independent labels, not weaker. Class rankings are also stable across the two evaluations (ρ = +0.705, p = 0.005), so the difference between them is a level shift rather than a reordering.
 
-**Conclusion.** Detection performance on this dataset is predicted by inter-radiologist localisation agreement and not by training-set size, lesion area, or architecture. The practical implication is that reported per-class numbers on the low-agreement findings measure annotation consistency as much as model capability: a detector scoring 0.06 on Pleural thickening may be near the ceiling the labels permit.
+**Conclusion.** Detection performance on this dataset is predicted by inter-radiologist localisation agreement, and not by training-set size, lesion area, or architecture. The practical implication is that reported per-class numbers on low-agreement findings measure annotation consistency as much as model capability: a detector scoring 0.06 on Pleural thickening may be near the ceiling the labels permit.
 
-**Caveats.** n = 14 classes limits statistical power. The consensus evaluation used a 300-image subsample enriched for abnormal cases, so its absolute mAP (0.063 mAP@0.5:0.95) is not comparable to a full-test-set benchmark figure. Consensus boxes also follow a different annotation convention from WBF-merged training boxes, which likely accounts for part of the absolute performance drop — Aortic enlargement falls from 0.590 to 0.066 with recall 0.545 but precision 0.217, consistent with correct detection under a different boxing convention rather than outright failure.
-
+**Caveats.** n = 14 classes limits statistical power. The consensus evaluation used a 300-image subsample enriched for abnormal cases, so its absolute mAP (0.063 mAP@0.5:0.95) is not comparable to a full-test-set benchmark figure. Consensus boxes also follow a different annotation convention from WBF-merged training boxes, which likely accounts for part of the absolute drop — Aortic enlargement falls from 0.590 to 0.066 with recall 0.545 but precision 0.217, consistent with correct detection under a different boxing convention rather than outright failure.
 
 ---
 
-## 9. Limitations
+## 9. Engineering
 
-- Trained on a 3,075-image subset of a 15,000-image training set, which under-represents rare classes relative to the full data (roughly 30 Calcification examples against 458 available; 15 Atelectasis against 187). Note that correcting this would not be expected to help, given that training-set size shows no correlation with per-class performance.
+**Serving.** The deployed demo runs YOLOv8s on Hugging Face Spaces via Gradio, accepting PNG, JPG, and DICOM. A FastAPI service provides JSON detections, an annotated-image endpoint, DICOM support, and input validation with size limits and graceful error handling. A React frontend adds client-side threshold filtering and per-class toggles.
+
+**Model swap.** Moving from Faster R-CNN to YOLOv8s required refitting calibration against the new score distribution — the previous curve was fitted to a different model and would have produced wrong confidences. The inference engine was rewritten while keeping the public interface identical (`predict`, `draw_detections`, `read_dicom`), so the API, tests, and demo needed no changes. The existing test suite served as the regression check.
+
+**ONNX export — evaluated, not deployed.** The model was exported to ONNX (opset 12, fixed 512×512 input) with post-processing — anchor-free box decoding and per-class NMS — reimplemented from the raw `(1, 18, 5376)` output. Verified against ultralytics on test images: identical classes, identical scores, **0.00px maximum box difference**. Benchmarked at 163.9 ms/image versus 186.7 ms for ultralytics on CPU — a 1.14× speedup.
+
+It was not deployed. The speedup is immaterial for single-image interactive use, the ONNX file is larger (42.6 MB vs 22.5 MB), and replacing library-maintained post-processing with hand-written decoding introduces maintenance risk against a calibration curve fitted to ultralytics' NMS behaviour. The export script and verification results are in the repository (`export_onnx.py`, `analysis/onnx_evaluation.json`).
+
+**Practices.** 7 endpoint tests covering happy paths and error cases, running in CI on every push; calibration validated on held-out data before deployment; version-independent artifact storage; honest scoping throughout.
+
+---
+
+## 10. Limitations
+
+- Trained on a 3,075-image subset of a 15,000-image training set, which under-represents rare classes relative to the full data (roughly 30 Calcification examples against 458 available; 15 Atelectasis against 187). Correcting this would not be expected to help, given that training-set size shows no correlation with per-class performance.
+- Twelve of fourteen classes are unreliable, and the evidence indicates this reflects annotation agreement rather than a fixable model or data deficiency.
 - Not clinically validated; no regulatory clearance. Educational demonstration only.
 - Calibration is fitted to this dataset's distribution and would require refitting for other data.
 - The deployed model is conservative on out-of-distribution images and frequently returns no findings on radiographs unlike its training data.
-- Performance on different equipment or populations is untested.
+- The agreement analysis covers 14 classes; n is small and the consensus evaluation used a 300-image subsample.
 
-## 10. What Would Actually Help
+---
 
-Two hypotheses were tested; neither survived.
+## 11. What Would Actually Help
 
-**Not a better architecture.** YOLOv8s outperformed Faster R-CNN on all 14 classes with a quarter of the parameters, and the failing classes stayed failing.
+Three hypotheses were tested and rejected; one held.
 
-**Not more data.** Checking against the full VinDr-CXR annotations gave ρ = +0.055 (p = 0.85) between per-class training-set size and mAP — no relationship. The subset used here was thinner than the full set for rare classes, but that is not what separates the working classes from the failing ones.
+**Rejected: architecture.** YOLOv8s outperformed Faster R-CNN on all 14 classes with a quarter of the parameters, without changing which classes fail.
 
-What remains open:
+**Rejected: training-set size.** ρ = +0.055 (p = 0.85) against per-class mAP.
 
-- **Higher input resolution**, tested specifically on the small-lesion classes. Calcification and Pleural thickening have the smallest median box areas in the dataset (27k and 31k px²) and may be losing signal at 512px. This is the one hypothesis the data actively supports and it is directly testable.
-- **Anatomical constraint** as the explanatory variable, measured properly. Normalising positional spread by image dimensions, and extending to all 22 local labels rather than 14, would give the analysis more power than n = 14 allows.
-- **Inter-radiologist agreement**, which is unmeasured here and may cap achievable performance on the diffuse classes. The training annotations contain three independent radiologists per image, so this is computable from data already in hand.
-- **A consensus-labelled evaluation set.** The official VinDr-CXR test set (3,000 images, consensus of five radiologists with two senior reviewers resolving disagreements) is stronger ground truth than the three-radiologist WBF merge used here.
+**Rejected: input resolution.** Native images are 3072×3072, a 6× downsample to 512px. A median Calcification box becomes roughly 27×27 pixels at input scale — above the 32px COCO "small object" threshold and well within YOLOv8's finest detection stride of 8px. Resolution is unlikely to be limiting for these classes.
+
+**Held: inter-radiologist agreement.** ρ = +0.727 against the WBF split, +0.802 against independent consensus labels, robust to partial correlation and leave-one-out.
+
+Given that, the useful directions are not more data or bigger models:
+
+- **Report agreement alongside per-class metrics.** A benchmark number on a low-agreement class conflates model capability with label consistency, and the two should be separable.
+- **Model annotation uncertainty explicitly** rather than collapsing radiologists into a single consensus box — soft targets or per-annotator supervision.
+- **Establish an agreement-based ceiling.** Treating each radiologist's annotation as a prediction against the others gives a human-level mAP per class, showing how much headroom actually remains.
+- **Extend to all 22 local labels** to raise n beyond 14, which is the binding constraint on statistical power here.
